@@ -12,38 +12,61 @@
 
 ## 1. 前端部署
 
-前端是纯静态 HTML 文件（`index.html`），可免费托管到以下平台。
+前端是纯静态 HTML 文件（`index.html`），支持以下托管方式。
 
-### 方案 A：Vercel（推荐）
+### 方案 A：GitHub Pages + GitHub Actions（推荐）
+
+本项目内置了 GitHub Actions 工作流，推送代码到 `main` 分支即可自动部署。
+
+> 已在 `.github/workflows/deploy-pages.yml` 中配置完毕，无需手动设置构建步骤。
+
+操作步骤：
+
+1. 在 GitHub 上创建一个仓库（例如 `little-helper`），**不要勾选** "Add a README" 等初始化选项
+2. 在本地项目根目录执行：
+
+```bash
+git init
+git checkout -b main
+git add .
+git commit -m "feat: 高情商回复小助手"
+git remote add origin https://github.com/xcy4321/little-helper.git
+git push -u origin main
+```
+
+3. 进入 GitHub 仓库 **Settings → Pages → Build and deployment → Source**，选择 **GitHub Actions**
+4. 回到仓库 **Actions** 页面，等待 `Deploy to GitHub Pages` 工作流运行完成
+5. 部署成功后，页面在以下地址可用：
+
+```
+https://xcy4321.github.io/little-helper/
+```
+
+> **一键脚本**：项目提供了 `deploy-github.sh`，运行后按提示输入仓库地址即可自动完成推送。
+
+#### 配置自定义域名（可选）
+
+1. 在仓库 **Settings → Pages → Custom domain** 中填入你的域名
+2. 在你的域名 DNS 解析中添加一条 `CNAME` 记录，指向 `xcy4321.github.io`
+3. 等待 DNS 生效（通常几分钟到几小时）
+
+### 方案 B：Vercel
 
 1. 登录 [vercel.com](https://vercel.com)（可用 GitHub 账号）
 2. 点击 **Add New → Project**
-3. 导入包含 `index.html` 的 Git 仓库，或使用 **Vercel CLI**：
+3. 导入包含 `index.html` 的 Git 仓库
+4. Vercel 会自动识别静态文件并部署，得到 `https://xxx.vercel.app` 域名
 
-```bash
-# 安装 Vercel CLI
-npm i -g vercel
-
-# 在 index.html 所在目录执行
-vercel --prod
-```
-
-Vercel 会自动识别静态文件并部署，部署后会得到一个 `https://xxx.vercel.app` 域名。
-
-### 方案 B：Netlify
+### 方案 C：Netlify
 
 1. 登录 [netlify.com](https://netlify.com)
-2. 将 `index.html` 上传到任意 GitHub/GitLab 仓库
-3. 点击 **Add new site → Import an existing project**
-4. 选择仓库，构建命令留空，发布目录选根目录
-5. 点击 **Deploy**
+2. 点击 **Add new site → Import an existing project**
+3. 选择仓库，构建命令留空，发布目录选根目录
+4. 点击 **Deploy**
 
-### 方案 C：GitHub Pages
+---
 
-1. 在 GitHub 上创建一个仓库（例如 `eq-reply`）
-2. 将 `index.html` 推送到仓库
-3. 进入 **Settings → Pages**，将 Source 设为 **Deploy from a branch**，Branch 选 `main`，目录选 `/ (root)`
-4. 保存后等待几分钟，即可通过 `https://<你的用户名>.github.io/eq-reply` 访问
+> **前端无需构建**：`index.html` 是纯静态文件，所有平台都直接托管即可。
 
 ---
 
@@ -136,7 +159,9 @@ const API_URL = 'https://eq-worker.yourdomain.workers.dev';
 const API_URL = 'https://eq-reply-worker.<你的子域名>.workers.dev';
 ```
 
-4. 重新部署前端（参考第 1 节），或直接在本地打开 `index.html` 测试
+4. 重新部署前端：
+   - **GitHub Pages**：将修改推送至 `main` 分支，GitHub Actions 会自动部署
+   - **本地测试**：直接用浏览器打开 `index.html` 即可验证，无需部署
 
 ### 请求格式说明
 

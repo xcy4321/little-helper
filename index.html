@@ -169,7 +169,7 @@
     const copyBtn = document.getElementById('copyBtn');
     const errorToast = document.getElementById('errorToast');
 
-    const API_URL = 'https://eq-worker.yourdomain.workers.dev';
+    const API_URL = 'https://little-helper.2801096079.workers.dev';
 
     let toastTimer = null;
 
@@ -194,7 +194,7 @@
         const resp = await fetch(API_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ message: msg })
+          body: JSON.stringify({ userInput: msg })
         });
 
         if (!resp.ok) {

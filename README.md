@@ -37,15 +37,40 @@ const API_URL = 'https://你的-worker.workers.dev';
 
 ### 3. 部署前端到 GitHub Pages
 
-#### 方式一：GitHub Actions（推荐）
+本项目已内置 GitHub Actions 工作流，推送即可自动部署。
 
-1. 将本项目推送到 GitHub 仓库（可使用 `deploy-github.sh`）
-2. 在仓库 **Settings → Pages → Build and deployment → Source** 中选择 **GitHub Actions**
-3. 推送代码到 `main` 分支，GitHub Actions 会自动部署
+#### 方式一：一键脚本部署（推荐）
 
-#### 方式二：手动部署到其他平台
+```bash
+# 在项目根目录执行
+chmod +x deploy-github.sh
+./deploy-github.sh
+```
 
-详见 [DEPLOY.md](./DEPLOY.md#1-前端部署)，支持 Vercel / Netlify / GitHub Pages。
+脚本会完成：初始化仓库 → 提交 → 推送到远程，之后去 GitHub 仓库 **Settings → Pages** 选择 **GitHub Actions** 作为部署源即可。
+
+#### 方式二：手动推送
+
+```bash
+git init
+git checkout -b main
+git add .
+git commit -m "feat: 高情商回复小助手"
+git remote add origin https://github.com/<你的用户名>/<仓库名>.git
+git push -u origin main
+```
+
+推送完成后，进入 GitHub 仓库 **Settings → Pages → Build and deployment → Source**，选择 **GitHub Actions**，等待 Actions 自动部署完成即可。
+
+#### 访问地址
+
+部署完成后，页面将在以下地址可用：
+
+```
+https://<你的用户名>.github.io/<仓库名>/
+```
+
+其他平台（Vercel / Netlify）部署方式请参考 [DEPLOY.md](./DEPLOY.md#1-前端部署)。
 
 ## 自定义 Prompt
 

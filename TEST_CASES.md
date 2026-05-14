@@ -14,7 +14,7 @@
 ## 测试步骤
 
 1. 确保 Worker 已部署且 `index.html` 中的 `API_URL` 已正确指向 Worker 地址
-2. 用浏览器打开 `index.html`
+2. 用浏览器打开部署后的 GitHub Pages 地址（或直接本地打开 `index.html`）
 3. 将每个输入逐条粘贴到文本框中
 4. 点击 **✨ 生成回复**
 5. 检查回复是否符合期望特征
