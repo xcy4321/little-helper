@@ -3,7 +3,9 @@
  *
  * 部署方式：
  * 1. 将本文件部署到 Cloudflare Workers
- * 2. 在 Worker 的设置页面添加环境变量 DEEPSEEK_API_KEY
+ * 2. 在 Worker 的设置页面添加环境变量：
+ *    - DEEPSEEK_API_KEY：DeepSeek API Key
+ *    - ADMIN_IPS：（可选）管理员 IP 白名单，多个用逗号分隔，如 "1.2.3.4,5.6.7.8"
  * 3. 创建 KV 命名空间（用于每日限流），绑定到 Worker，变量名设为 RATE_LIMIT_KV
  *    操作路径：Workers → 你的 Worker → Settings → Variables → KV Namespace Bindings
  *    -> Add binding -> 变量名 RATE_LIMIT_KV，选择你创建的 KV 命名空间
@@ -39,6 +41,7 @@ addEventListener('fetch', (event) => {
 async function checkRateLimit(request) {
   if (!RATE_LIMIT_KV) return;
   const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  if (ADMIN_IPS && ADMIN_IPS.split(',').map(s => s.trim()).includes(ip)) return;
   const today = new Date().toISOString().slice(0, 10);
   const key = `ratelimit:${ip}:${today}`;
   const count = parseInt(await RATE_LIMIT_KV.get(key) || '0', 10);
