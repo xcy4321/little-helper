@@ -13,6 +13,8 @@
 ├── deploy-github.sh        # GitHub Pages 一键部署脚本 (bash)
 ├── scf/
 │   └── index.js            # 腾讯云函数适配版（可选后端）
+├── fc/
+│   └── index.js            # 阿里云函数计算适配版（可选后端）
 └── .github/workflows/
     └── deploy-pages.yml    # GitHub Actions 自动部署工作流
 ```
