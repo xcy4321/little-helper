@@ -52,20 +52,31 @@ async function checkRateLimit(request) {
   return { allowed: true, remaining: DAILY_LIMIT - count - 1, limit: DAILY_LIMIT };
 }
 
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type',
+};
+
+function jsonResponse(body, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
+  });
+}
+
 async function handleRequest(request) {
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: CORS_HEADERS });
+  }
+
   if (request.method !== 'POST') {
-    return new Response(JSON.stringify({ reply: '仅支持 POST 请求' }), {
-      status: 405,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ reply: '仅支持 POST 请求' }, 405);
   }
 
   const rateLimit = await checkRateLimit(request);
   if (rateLimit && !rateLimit.allowed) {
-    return new Response(JSON.stringify({ reply: '今日次数已用完（每日限 100 次），明天再来吧~' }), {
-      status: 429,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ reply: '今日次数已用完（每日限 100 次），明天再来吧~' }, 429);
   }
 
   let userInput;
@@ -73,25 +84,16 @@ async function handleRequest(request) {
     const body = await request.json();
     userInput = body.userInput;
   } catch {
-    return new Response(JSON.stringify({ reply: '请求格式错误，请发送 JSON' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ reply: '请求格式错误，请发送 JSON' }, 400);
   }
 
   if (!userInput || typeof userInput !== 'string' || !userInput.trim()) {
-    return new Response(JSON.stringify({ reply: '请输入有效内容' }), {
-      status: 400,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ reply: '请输入有效内容' }, 400);
   }
 
   const apiKey = DEEPSEEK_API_KEY;
   if (!apiKey) {
-    return new Response(JSON.stringify({ reply: '生成失败，请重试' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ reply: '生成失败，请重试' }, 500);
   }
 
   try {
@@ -114,24 +116,15 @@ async function handleRequest(request) {
 
     if (!resp.ok) {
       console.error('DeepSeek API error:', resp.status, await resp.text());
-      return new Response(JSON.stringify({ reply: '生成失败，请重试' }), {
-        status: 200,
-        headers: { 'Content-Type': 'application/json' },
-      });
+      return jsonResponse({ reply: '生成失败，请重试' });
     }
 
     const data = await resp.json();
     const reply = data.choices?.[0]?.message?.content?.trim() || '生成失败，请重试';
 
-    return new Response(JSON.stringify({ reply }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ reply });
   } catch (err) {
     console.error('Request failed:', err);
-    return new Response(JSON.stringify({ reply: '生成失败，请重试' }), {
-      status: 200,
-      headers: { 'Content-Type': 'application/json' },
-    });
+    return jsonResponse({ reply: '生成失败，请重试' });
   }
 }
