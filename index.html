@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>💬 高情商回复小助手</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      padding: 24px 16px;
+    }
+    .container {
+      width: 100%;
+      max-width: 640px;
+    }
+    h1 {
+      font-size: 28px;
+      font-weight: 600;
+      text-align: center;
+      margin-bottom: 28px;
+      color: #e0e0e0;
+    }
+    textarea {
+      width: 100%;
+      min-height: 140px;
+      padding: 14px 16px;
+      font-size: 15px;
+      line-height: 1.6;
+      border: 1px solid #3c3c3c;
+      border-radius: 10px;
+      background: #252526;
+      color: #d4d4d4;
+      resize: vertical;
+      outline: none;
+      transition: border-color 0.2s;
+      font-family: inherit;
+    }
+    textarea:focus {
+      border-color: #569cd6;
+    }
+    textarea::placeholder {
+      color: #6e6e6e;
+    }
+    button {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      width: 100%;
+      margin-top: 14px;
+      padding: 12px 0;
+      font-size: 16px;
+      font-weight: 500;
+      border: none;
+      border-radius: 10px;
+      background: #0e639c;
+      color: #fff;
+      cursor: pointer;
+      transition: background 0.2s, opacity 0.2s;
+      font-family: inherit;
+    }
+    button:hover:not(:disabled) {
+      background: #1177bb;
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .card {
+      margin-top: 24px;
+      padding: 20px;
+      background: #2d2d2d;
+      border-radius: 12px;
+      border: 1px solid #3c3c3c;
+      display: none;
+      word-break: break-word;
+    }
+    .card.show {
+      display: block;
+    }
+    .card .label {
+      font-size: 13px;
+      color: #9e9e9e;
+      margin-bottom: 8px;
+    }
+    .card .reply-text {
+      font-size: 16px;
+      line-height: 1.7;
+      white-space: pre-wrap;
+    }
+    .card .copy-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      margin-top: 14px;
+      padding: 6px 16px;
+      font-size: 14px;
+      border: 1px solid #5a5a5a;
+      border-radius: 8px;
+      background: transparent;
+      color: #c0c0c0;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+      font-family: inherit;
+    }
+    .card .copy-btn:hover {
+      background: #3c3c3c;
+      border-color: #7a7a7a;
+    }
+    .card .copy-btn.copied {
+      border-color: #4ec9b0;
+      color: #4ec9b0;
+    }
+    .error-toast {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: #5a1d1d;
+      color: #f48771;
+      padding: 12px 24px;
+      border-radius: 10px;
+      font-size: 14px;
+      border: 1px solid #6e3030;
+      box-shadow: 0 4px 16px rgba(0,0,0,.4);
+      z-index: 999;
+      opacity: 0;
+      transition: opacity 0.3s;
+      pointer-events: none;
+    }
+    .error-toast.show {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    @media (max-width: 480px) {
+      body { padding: 16px 12px; }
+      h1 { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>💬 高情商回复小助手</h1>
+
+    <textarea id="inputMsg" placeholder="输入对方发来的消息..."></textarea>
+
+    <button id="generateBtn">✨ 生成回复</button>
+
+    <div class="card" id="resultCard">
+      <div class="label">🤖 高情商回复</div>
+      <div class="reply-text" id="replyText"></div>
+      <button class="copy-btn" id="copyBtn">📋 复制</button>
+    </div>
+
+    <div class="error-toast" id="errorToast"></div>
+  </div>
+
+  <script>
+    const inputMsg = document.getElementById('inputMsg');
+    const generateBtn = document.getElementById('generateBtn');
+    const resultCard = document.getElementById('resultCard');
+    const replyText = document.getElementById('replyText');
+    const copyBtn = document.getElementById('copyBtn');
+    const errorToast = document.getElementById('errorToast');
+
+    const API_URL = 'https://eq-worker.yourdomain.workers.dev';
+
+    let toastTimer = null;
+
+    function showError(msg) {
+      errorToast.textContent = msg;
+      errorToast.classList.add('show');
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => errorToast.classList.remove('show'), 4000);
+    }
+
+    generateBtn.addEventListener('click', async () => {
+      const msg = inputMsg.value.trim();
+      if (!msg) {
+        showError('请先输入对方发来的消息');
+        return;
+      }
+
+      generateBtn.disabled = true;
+      generateBtn.innerHTML = '⏳ 思考中...';
+
+      try {
+        const resp = await fetch(API_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: msg })
+        });
+
+        if (!resp.ok) {
+          throw new Error(`请求失败 (${resp.status})`);
+        }
+
+        const data = await resp.json();
+        const text = data.reply ?? data.result ?? JSON.stringify(data);
+
+        replyText.textContent = text;
+        resultCard.classList.add('show');
+        copyBtn.classList.remove('copied');
+        copyBtn.textContent = '📋 复制';
+      } catch (err) {
+        showError('请求失败，请检查网络或稍后重试');
+      } finally {
+        generateBtn.disabled = false;
+        generateBtn.innerHTML = '✨ 生成回复';
+      }
+    });
+
+    copyBtn.addEventListener('click', async () => {
+      const text = replyText.textContent;
+      try {
+        await navigator.clipboard.writeText(text);
+        copyBtn.textContent = '✅ 已复制';
+        copyBtn.classList.add('copied');
+      } catch {
+        showError('复制失败，请手动复制');
+      }
+    });
+  </script>
+</body>
+</html>
