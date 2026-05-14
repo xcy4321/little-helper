@@ -197,6 +197,12 @@
           body: JSON.stringify({ userInput: msg })
         });
 
+        if (resp.status === 429) {
+          const data = await resp.json();
+          showError(data.reply || '今日次数已用完，明天再来吧~');
+          return;
+        }
+
         if (!resp.ok) {
           throw new Error(`请求失败 (${resp.status})`);
         }

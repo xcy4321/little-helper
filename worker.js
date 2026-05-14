@@ -4,15 +4,19 @@
  * 部署方式：
  * 1. 将本文件部署到 Cloudflare Workers
  * 2. 在 Worker 的设置页面添加环境变量 DEEPSEEK_API_KEY
- *    或通过 wrangler.toml 配置:
+ * 3. 创建 KV 命名空间（用于每日限流），绑定到 Worker，变量名设为 RATE_LIMIT_KV
+ *    操作路径：Workers → 你的 Worker → Settings → Variables → KV Namespace Bindings
+ *    -> Add binding -> 变量名 RATE_LIMIT_KV，选择你创建的 KV 命名空间
+ *    也可通过 wrangler.toml 配置:
  *    ```
- *    [vars]
- *    DEEPSEEK_API_KEY = "sk-xxxxxxxxxxxxxxxx"
+ *    [[kv_namespaces]]
+ *    binding = "RATE_LIMIT_KV"
+ *    id = "你的KV命名空间ID"
  *    ```
- * 3. 部署完成后将 Worker 域名更新到前端 index.html 的 API_URL 即可
+ * 4. 部署完成后将 Worker 域名更新到前端 index.html 的 API_URL 即可
  *
  * 本地开发 / 测试:
- *   npx wrangler dev
+ *   npx wrangler dev --kv RATE_LIMIT_KV
  *   curl -X POST http://localhost:8787 \
  *     -H "Content-Type: application/json" \
  *     -d '{"userInput":"今天被领导批评了"}'
@@ -26,14 +30,37 @@ const SYSTEM_PROMPT = `你是一个高情商回复助手。请根据用户输入
 - 如果对方在抱怨，先表示理解再给建议
 - 如果对方分享喜悦，热情祝贺`;
 
+const DAILY_LIMIT = 100;
+
 addEventListener('fetch', (event) => {
   event.respondWith(handleRequest(event.request));
 });
+
+async function checkRateLimit(request) {
+  if (!RATE_LIMIT_KV) return;
+  const ip = request.headers.get('CF-Connecting-IP') || 'unknown';
+  const today = new Date().toISOString().slice(0, 10);
+  const key = `ratelimit:${ip}:${today}`;
+  const count = parseInt(await RATE_LIMIT_KV.get(key) || '0', 10);
+  if (count >= DAILY_LIMIT) {
+    return { allowed: false, remaining: 0, limit: DAILY_LIMIT };
+  }
+  await RATE_LIMIT_KV.put(key, String(count + 1), { expirationTtl: 86400 });
+  return { allowed: true, remaining: DAILY_LIMIT - count - 1, limit: DAILY_LIMIT };
+}
 
 async function handleRequest(request) {
   if (request.method !== 'POST') {
     return new Response(JSON.stringify({ reply: '仅支持 POST 请求' }), {
       status: 405,
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  const rateLimit = await checkRateLimit(request);
+  if (rateLimit && !rateLimit.allowed) {
+    return new Response(JSON.stringify({ reply: '今日次数已用完（每日限 100 次），明天再来吧~' }), {
+      status: 429,
       headers: { 'Content-Type': 'application/json' },
     });
   }
