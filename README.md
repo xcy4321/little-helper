@@ -11,6 +11,8 @@
 ├── DEPLOY.md               # 前后端详细部署说明
 ├── TEST_CASES.md           # 测试用例（含 6 种场景）
 ├── deploy-github.sh        # GitHub Pages 一键部署脚本 (bash)
+├── scf/
+│   └── index.js            # 腾讯云函数适配版（可选后端）
 └── .github/workflows/
     └── deploy-pages.yml    # GitHub Actions 自动部署工作流
 ```
