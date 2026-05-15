@@ -1,15 +1,16 @@
 /**
- * 阿里云函数计算 - 高情商回复小助手 API 适配版
+ * 阿里云函数计算（Web 函数）- 高情商回复小助手 API 适配版
+ *
+ * Web 函数需要自行启动 HTTP 服务，平台将请求转发到监听端口。
  *
  * 部署方式：
- * 1. 在阿里云 FC 控制台创建函数
+ * 1. 在阿里云 FC 控制台创建 Web 函数
  *    - 运行环境: Node.js 18+
- *    - 函数入口: index.handler
- *    - 触发器: HTTP 触发器
- *      - 认证方式: 匿名
- *      - 请求方法: POST, OPTIONS
- * 2. 在环境变量中添加 DEEPSEEK_API_KEY
- * 3. 将生成的 HTTP 触发 URL 更新到前端 index.html 的 API_URL
+ *    - 启动命令: node index.js
+ *    - 监听端口: 9000
+ * 2. 触发器: HTTP 触发器（匿名，勾选 POST + OPTIONS）
+ * 3. 在环境变量中添加 DEEPSEEK_API_KEY
+ * 4. 将生成的 HTTP 触发 URL 更新到前端 index.html 的 API_URL
  *
  * 测试：
  *   curl -X POST https://<函数URL> \
@@ -17,6 +18,7 @@
  *     -d '{"userInput":"今天被领导批评了"}'
  */
 
+const http = require('http');
 const SYSTEM_PROMPT = `你是一个高情商回复助手。请根据用户输入，生成一段温暖、共情、智慧的回复。
 要求：
 - 不要指责对方，不要用说教口吻
@@ -28,57 +30,67 @@ const SYSTEM_PROMPT = `你是一个高情商回复助手。请根据用户输入
 const DAILY_LIMIT = 100;
 const ipCounts = {};
 
-function send(resp, statusCode, data) {
-  resp.setStatusCode(statusCode);
-  resp.setHeader('Access-Control-Allow-Origin', '*');
-  resp.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  resp.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-  resp.setHeader('Content-Type', 'application/json');
-  resp.send(typeof data === 'string' ? '' : JSON.stringify(data));
+function jsonResponse(res, statusCode, data) {
+  res.writeHead(statusCode, {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Content-Type': 'application/json',
+  });
+  res.end(JSON.stringify(data));
 }
 
-exports.handler = async function (req, resp, context) {
+function collectBody(req) {
+  return new Promise((resolve) => {
+    let chunks = [];
+    req.on('data', (chunk) => chunks.push(chunk));
+    req.on('end', () => resolve(Buffer.concat(chunks).toString()));
+  });
+}
+
+http.createServer(async (req, res) => {
   if (req.method === 'OPTIONS') {
-    resp.setHeader('Access-Control-Allow-Origin', '*');
-    resp.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-    resp.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-    resp.setStatusCode(204);
-    resp.send('');
+    res.writeHead(204, {
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS',
+      'Access-Control-Allow-Headers': 'Content-Type',
+    });
+    res.end();
     return;
   }
 
   if (req.method !== 'POST') {
-    send(resp, 405, { reply: '仅支持 POST 请求' });
+    jsonResponse(res, 405, { reply: '仅支持 POST 请求' });
     return;
   }
 
   let userInput;
   try {
-    const body = JSON.parse((req.body || '').toString() || '{}');
+    const body = JSON.parse(await collectBody(req));
     userInput = body.userInput;
   } catch {
-    send(resp, 400, { reply: '请求格式错误' });
+    jsonResponse(res, 400, { reply: '请求格式错误' });
     return;
   }
 
   if (!userInput || typeof userInput !== 'string' || !userInput.trim()) {
-    send(resp, 400, { reply: '请输入有效内容' });
+    jsonResponse(res, 400, { reply: '请输入有效内容' });
     return;
   }
 
-  const ip = (req.headers?.['x-forwarded-for'] || '').split(',')[0] || 'unknown';
+  const ip = (req.headers['x-forwarded-for'] || '').split(',')[0] || 'unknown';
   const today = new Date().toISOString().slice(0, 10);
   const key = `${ip}:${today}`;
   ipCounts[key] = (ipCounts[key] || 0) + 1;
 
   if (ipCounts[key] > DAILY_LIMIT) {
-    send(resp, 429, { reply: '今日次数已用完（每日限 100 次），明天再来吧~' });
+    jsonResponse(res, 429, { reply: '今日次数已用完（每日限 100 次），明天再来吧~' });
     return;
   }
 
   const apiKey = process.env.DEEPSEEK_API_KEY;
   if (!apiKey) {
-    send(resp, 500, { reply: '生成失败，请重试' });
+    jsonResponse(res, 500, { reply: '生成失败，请重试' });
     return;
   }
 
@@ -102,16 +114,16 @@ exports.handler = async function (req, resp, context) {
 
     if (!result.ok) {
       console.error('DeepSeek API error:', result.status);
-      send(resp, 200, { reply: '生成失败，请重试' });
+      jsonResponse(res, 200, { reply: '生成失败，请重试' });
       return;
     }
 
     const data = await result.json();
     const reply = data.choices?.[0]?.message?.content?.trim() || '生成失败，请重试';
 
-    send(resp, 200, { reply });
+    jsonResponse(res, 200, { reply });
   } catch (err) {
     console.error('Request failed:', err);
-    send(resp, 200, { reply: '生成失败，请重试' });
+    jsonResponse(res, 200, { reply: '生成失败，请重试' });
   }
-};
+}).listen(9000, () => console.log('Server ready on 9000'));
